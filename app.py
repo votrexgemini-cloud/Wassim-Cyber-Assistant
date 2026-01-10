@@ -8,13 +8,11 @@ model_id = "Qwen/Qwen2.5-0.5B-Instruct"
 pipe = pipeline("text-generation", model=model_id, device_map="auto")
 
 def predict(message, history):
-    # System Instructions in English for Cyber Security Expertise
+    # System Instructions
     system_instructions = (
-        "You are 'Wassim Smart Assistant', a high-level Cyber Security and Programming Expert. "
+        "You are 'Wassim Smart Assistant', a Cyber Security and Programming Expert. "
         "Origin: Developed at Wassim Sharafi Intelligent Systems Labs. "
-        "Expertise: Kali Linux, Penetration Testing, Python, Java, and C++. "
-        "Response Style: Professional, concise, and technical. "
-        "Always respond in English as requested."
+        "Always respond in English."
     )
     
     messages = [{"role": "system", "content": system_instructions}]
@@ -23,7 +21,6 @@ def predict(message, history):
         messages.append({"role": "assistant", "content": assistant})
     messages.append({"role": "user", "content": message})
 
-    # Streaming setup for fast response
     streamer = TextIteratorStreamer(pipe.tokenizer, skip_prompt=True, skip_special_tokens=True)
     
     generation_kwargs = dict(
@@ -41,7 +38,7 @@ def predict(message, history):
         partial_message += new_token
         yield partial_message
 
-# 2. UI Design (Clean & Professional)
+# 2. UI Design
 css = """
 .gradio-container {background-color: #050505; color: #00ff41; font-family: 'Consolas', monospace !important;}
 .chatbot {border: 1px solid #00ff41 !important;}
@@ -50,12 +47,16 @@ footer {display: none !important;}
 """
 
 with gr.Blocks(css=css) as demo:
-    # The main title in English
     gr.Markdown("<div id='title'>Wassim Smart Assistant: Cyber Security Expert</div>")
     
     gr.ChatInterface(
         fn=predict,
-        chatbot=gr.Chatbot(height=600, show_label=False),
+        chatbot=gr.Chatbot(
+            height=600, 
+            show_label=False,
+            # هذه الخاصية تضيف رسالة الترحيب في بداية الشات
+            value=[[None, "Hello, I'm wassim digital assistant"]] 
+        ),
         textbox=gr.Textbox(placeholder="Ask the Cyber Security Expert...", container=False, scale=7),
         theme="soft",
         submit_btn="Send Message",
