@@ -1,54 +1,49 @@
 import gradio as gr
-from transformers import pipeline
+from transformers import pipeline, TextIteratorStreamer
+from threading import Thread
 
-# 1. تحميل المحرك العصبي لمختبرات وسيم
-print("Initializing Wassim's Neural Engine v4...")
-pipe = pipeline("text-generation", model="Qwen/Qwen2.5-1.5B-Instruct", device_map="auto")
+# 1. تحميل المحرك العصبي (نسخة سريعة)
+print("Initializing Wassim's Fast Neural Engine...")
+# استخدمنا 0.5B بدلاً من 1.5B للسرعة القصوى على المعالج المجاني
+model_id = "Qwen/Qwen2.5-0.5B-Instruct" 
+pipe = pipeline("text-generation", model=model_id, device_map="auto")
 
-# 2. دالة المعالجة والهوية التقنية
 def predict(message, history):
     system_instructions = (
-        "أنت 'Wassim-Pro-Gen'، مساعد ذكي فائق التطور مخصص للبرمجة والأمن السيبراني. "
-        "مكان الصنع: تم تطويرك وبرمجتك بالكامل داخل 'مختبرات وسيم شرفي للأنظمة الذكية'. "
-        "المطور الرئيسي: المبرمج وسيم شرفي. "
-        "التخصصات: Kali Linux, Python, Java, C++, اختراق الأنظمة الأخلاقي، وعلوم الحاسوب. "
-        "يجب أن تتحدث دائماً باللغة العربية الفصحى وبنبرة خبير تقني محترف."
+        "أنت 'Wassim-Pro-Gen' من مختبرات وسيم شرفي. "
+        "أجب باختصار وذكاء وباللغة العربية."
     )
-
-    messages = [{"role": "system", "content": system_instructions}]
     
-    # بناء ذاكرة المحادثة (History)
+    messages = [{"role": "system", "content": system_instructions}]
     for human, assistant in history:
         messages.append({"role": "user", "content": human})
         messages.append({"role": "assistant", "content": assistant})
-    
     messages.append({"role": "user", "content": message})
-    
-    # توليد الإجابة بدقة عالية
-    response = pipe(messages, max_new_tokens=1024, temperature=0.4)
-    return response[0]['generated_text'][-1]['content']
 
-# 3. تصميم واجهة الهاكرز المتقدمة (Matrix Style)
-css = """
-.gradio-container {background-color: #050505; color: #00ff41; font-family: 'Consolas', monospace !important;}
-.chatbot {border: 1px solid #00ff41 !important; border-radius: 10px;}
-footer {display: none !important;}
-"""
-
-with gr.Blocks(css=css) as demo:
-    gr.Markdown("<h1 style='text-align: center; color: #00ff41;'>⚡ WASSIM CYBER-ASSISTANT v4 ⚡</h1>")
-    gr.Markdown("<p style='text-align: center; color: #00ff41;'>Official Product of: Wassim Sharafi Intelligent Systems Labs</p>")
+    # إعداد تقنية التدفق (Streaming) للرد السريع
+    streamer = TextIteratorStreamer(pipe.tokenizer, skip_prompt=True, skip_special_tokens=True)
     
-    gr.ChatInterface(
-        fn=predict,
-        chatbot=gr.Chatbot(height=600, show_label=False),
-        textbox=gr.Textbox(placeholder="أدخل أمرك البرمجي هنا وسيم...", container=False, scale=7),
-        theme="soft",
-        submit_btn="إرسال عبر القناة الآمنة",
-        retry_btn="إعادة المحاولة",
-        undo_btn="تراجع",
-        clear_btn="مسح السجل",
+    # تشغيل المعالجة في خلفية منفصلة لعدم تجميد الواجهة
+    generation_kwargs = dict(
+        input_ids=pipe.tokenizer.apply_chat_template(messages, add_generation_prompt=True, return_tensors="pt"),
+        streamer=streamer,
+        max_new_tokens=512,
+        temperature=0.4,
     )
+    
+    thread = Thread(target=pipe.model.generate, kwargs=generation_kwargs)
+    thread.start()
+
+    # إرسال الكلمات فور توليدها للواجهة
+    partial_message = ""
+    for new_token in streamer:
+        partial_message += new_token
+        yield partial_message
+
+# تصميم الواجهة الاحترافية السريعة
+with gr.Blocks(css=".gradio-container {background-color: #050505; color: #00ff41;}") as demo:
+    gr.Markdown("<h1 style='text-align: center;'>⚡ WASSIM FAST-GEN v5 ⚡</h1>")
+    gr.ChatInterface(fn=predict, type="messages")
 
 if __name__ == "__main__":
     demo.launch()
